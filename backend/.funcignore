@@ -1,0 +1,16 @@
+.git*
+.vscode
+__azurite_db*__.json
+__blobstorage__
+__queuestorage__
+local.settings.json
+test
+.venv
+.env
+assets
+README.md
+snapshot.py
+snapshot.txt
+requirements.in
+LICENSE
+TODO

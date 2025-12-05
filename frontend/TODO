@@ -1,0 +1,9 @@
+# TODO List
+
+1. Host the frontend as an Azure Static Web App.
+    - Configure the frontend for deployment.
+    - Set up an Azure Static Web App resource.
+    - Deploy the frontend to Azure.
+    - Restrict access to a select few?
+
+2. Update readme
