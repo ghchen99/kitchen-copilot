@@ -1,0 +1,287 @@
+{
+  "recipes": [
+    {
+      "name": "Yogurt Fruit Bowl with Citrus and Berries",
+      "intro": "A fast vegetarian snack or light breakfast using the fruit and yogurt you already have.",
+      "ingredients": [
+        {
+          "name": "yogurt cup",
+          "amount": "1 cup",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "orange",
+          "amount": "1",
+          "optional": false,
+          "note": "peeled and segmented"
+        },
+        {
+          "name": "kiwi",
+          "amount": "1",
+          "optional": false,
+          "note": "peeled and sliced"
+        },
+        {
+          "name": "blueberries container",
+          "amount": "1/2 container",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "raspberries container",
+          "amount": "1/2 container",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "lemon",
+          "amount": "1 tsp juice",
+          "optional": true,
+          "note": "for brightness"
+        }
+      ],
+      "missing_ingredients": [],
+      "steps": [
+        "Spoon the yogurt cup into a bowl.",
+        "Peel and segment the orange, then add it to the bowl.",
+        "Slice the kiwi and add it with the blueberries container and raspberries container.",
+        "If you want a brighter flavor, squeeze a little lemon juice over the top.",
+        "Serve immediately."
+      ],
+      "time_minutes": 5,
+      "difficulty": "easy",
+      "nutrition": {
+        "calories": 220,
+        "protein_g": 8.0,
+        "carbs_g": 38.0,
+        "fat_g": 4.0
+      },
+      "dietary_tags": [
+        "vegetarian",
+        "quick",
+        "no-cook"
+      ],
+      "flavor_profile": [
+        "creamy",
+        "sweet",
+        "tart",
+        "fresh"
+      ],
+      "confidence_score": 0.98
+    },
+    {
+      "name": "Quick Vegetable Yogurt Salad",
+      "intro": "A crisp, refreshing salad with chopped vegetables and a simple yogurt-based dressing.",
+      "ingredients": [
+        {
+          "name": "cucumber",
+          "amount": "1",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "tomato",
+          "amount": "1",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "green bell pepper",
+          "amount": "1/2",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "yellow bell pepper",
+          "amount": "1/2",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "orange bell pepper",
+          "amount": "1/2",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "onion",
+          "amount": "1/4",
+          "optional": false,
+          "note": "thinly sliced"
+        },
+        {
+          "name": "chives container",
+          "amount": "1 tbsp",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "yogurt cup",
+          "amount": "1 cup",
+          "optional": false,
+          "note": "for dressing"
+        },
+        {
+          "name": "lemon",
+          "amount": "1 tbsp juice",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "salt",
+          "amount": "to taste",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "pepper",
+          "amount": "to taste",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "oil",
+          "amount": "1 tsp",
+          "optional": true,
+          "note": "optional for a richer dressing"
+        }
+      ],
+      "missing_ingredients": [],
+      "steps": [
+        "Chop the cucumber, tomato, green bell pepper, yellow bell pepper, and orange bell pepper into bite-size pieces.",
+        "Thinly slice the onion and chop the chives container.",
+        "In a bowl, mix the yogurt cup with lemon juice, salt, pepper, and optional oil until smooth.",
+        "Add the chopped vegetables and chives to the bowl.",
+        "Toss gently until everything is coated, then serve right away or chill for a few minutes."
+      ],
+      "time_minutes": 10,
+      "difficulty": "easy",
+      "nutrition": {
+        "calories": 180,
+        "protein_g": 7.0,
+        "carbs_g": 20.0,
+        "fat_g": 7.0
+      },
+      "dietary_tags": [
+        "vegetarian",
+        "quick",
+        "no-cook"
+      ],
+      "flavor_profile": [
+        "fresh",
+        "tangy",
+        "crisp",
+        "savory"
+      ],
+      "confidence_score": 0.95
+    },
+    {
+      "name": "Warm Mushrooms, Leek, and Bell Pepper Skillet",
+      "intro": "A simple warm vegetable dish that works as a light meal or side.",
+      "ingredients": [
+        {
+          "name": "mushrooms container",
+          "amount": "1 container",
+          "optional": false,
+          "note": "sliced if needed"
+        },
+        {
+          "name": "leek",
+          "amount": "1",
+          "optional": false,
+          "note": "thinly sliced"
+        },
+        {
+          "name": "onion",
+          "amount": "1/2",
+          "optional": false,
+          "note": "sliced"
+        },
+        {
+          "name": "green bell pepper",
+          "amount": "1",
+          "optional": false,
+          "note": "sliced"
+        },
+        {
+          "name": "tomato",
+          "amount": "1",
+          "optional": false,
+          "note": "chopped"
+        },
+        {
+          "name": "oil",
+          "amount": "1 tbsp",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "salt",
+          "amount": "to taste",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "pepper",
+          "amount": "to taste",
+          "optional": false,
+          "note": null
+        },
+        {
+          "name": "chives container",
+          "amount": "1 tbsp",
+          "optional": true,
+          "note": "to finish"
+        },
+        {
+          "name": "water",
+          "amount": "2 tbsp",
+          "optional": true,
+          "note": "to help soften vegetables"
+        }
+      ],
+      "missing_ingredients": [],
+      "steps": [
+        "Heat the oil in a skillet over medium heat.",
+        "Add the onion and leek and cook for 2 to 3 minutes, stirring often.",
+        "Add the mushrooms container and green bell pepper. Cook for 4 to 5 minutes until softened.",
+        "Add the tomato, salt, pepper, and a splash of water if the pan looks dry.",
+        "Cook for 1 to 2 more minutes, then top with chives container if using and serve warm."
+      ],
+      "time_minutes": 15,
+      "difficulty": "easy",
+      "nutrition": {
+        "calories": 140,
+        "protein_g": 4.0,
+        "carbs_g": 14.0,
+        "fat_g": 8.0
+      },
+      "dietary_tags": [
+        "vegetarian",
+        "quick",
+        "gluten-free",
+        "dairy-free"
+      ],
+      "flavor_profile": [
+        "savory",
+        "earthy",
+        "lightly sweet",
+        "fresh"
+      ],
+      "confidence_score": 0.93
+    }
+  ],
+  "quick_snack_ideas": [
+    "orange with a yogurt cup",
+    "cucumber slices with salt and pepper",
+    "blueberries container and raspberries container mixed together"
+  ],
+  "missing_common_items": [
+    "bread",
+    "eggs",
+    "rice",
+    "garlic",
+    "olive oil"
+  ]
+}
