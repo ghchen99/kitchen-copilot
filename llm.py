@@ -153,6 +153,19 @@ response = client.responses.parse(
 
 inventory = response.output_parsed
 
+import json
+
+# -----------------------------
+# SAVE STRUCTURED RESPONSE
+# -----------------------------
+
+output_path = f"{deployment_name}_fridge_inventory.json"
+
+with open(output_path, "w", encoding="utf-8") as f:
+    json.dump(inventory.model_dump(), f, indent=2)
+
+print(f"\nSaved structured output to: {output_path}")
+
 print("\nDetected items:\n")
 
 for item in inventory.items:
