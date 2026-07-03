@@ -2,3 +2,5 @@ python-dotenv
 openai
 azure-identity
 pydantic
+pillow 
+matplotlib
