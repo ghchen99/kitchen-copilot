@@ -115,8 +115,6 @@ class Recipe(BaseModel):
     dietary_tags: List[str]
     flavor_profile: List[str]
 
-    confidence_score: Optional[float] = None
-
 
 class FridgeAssistantResponse(BaseModel):
     recipes: List[Recipe]

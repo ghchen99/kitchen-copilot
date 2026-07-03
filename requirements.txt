@@ -4,3 +4,7 @@ azure-identity
 pydantic
 pillow 
 matplotlib
+langgraph
+langchain
+langchain-azure-ai
+ipython
