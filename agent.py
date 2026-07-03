@@ -4,6 +4,7 @@ from langchain.tools import tool
 from langchain.chat_models import init_chat_model
 import os
 from dotenv import load_dotenv
+from langgraph import graph
 
 load_dotenv()
 
@@ -154,3 +155,30 @@ messages = [HumanMessage(content="Add 3 and 4.")]
 messages = agent.invoke({"messages": messages})
 for m in messages["messages"]:
     m.pretty_print()
+
+### Features to use
+
+from langgraph.types import interrupt
+
+def review_node(state: State):
+    # Pause and show the current content for review (payload surfaces on stream.interrupts)
+    edited_content = interrupt({
+        "instruction": "Review and edit this content",
+        "content": state["generated_text"]
+    })
+
+    # Update the state with the edited version
+    return {"generated_text": edited_content}
+
+# When resuming, provide the edited content:
+graph.stream_events(
+    Command(resume="The edited and improved text"),  # Value becomes the return from interrupt()
+    config=config,
+    version="v3",
+).output
+
+checkpointer = InMemorySaver()
+graph = workflow.compile(checkpointer=checkpointer)
+
+config: RunnableConfig = {"configurable": {"thread_id": "1"}}
+graph.invoke({"foo": "", "bar":[]}, config)

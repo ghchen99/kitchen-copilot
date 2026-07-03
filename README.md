@@ -138,7 +138,90 @@ Set these environment variables in a `.env` file:
 
 ## Usage
 
+Run the two stages as standalone scripts:
+
 ```bash
 python identify.py
 python generate.py
 ```
+
+## Conversational Agent (LangGraph)
+
+The `kitchen/` package wraps both stages into a single LangGraph agent that a
+frontend can drive over HTTP, keeping conversation state per `thread_id`.
+
+### Architecture
+
+```mermaid
+flowchart LR
+	START --> LLM[llm_call]
+	LLM -->|tool call| TOOLS[tools]
+	LLM -->|final reply| END
+	TOOLS -->|ingredients detected| REVIEW[review_ingredients<br/>interrupt]
+	TOOLS -->|otherwise| LLM
+	REVIEW --> LLM
+```
+
+- **Tools the LLM can call**
+	- `identify_ingredients(image_path)` — runs the vision model, saves the inventory.
+	- `generate_recipes(allergies, dietary_preferences, skill_level, mode)` — runs the
+	  recipe model on the reviewed inventory. All constraints are optional.
+- **Human-in-the-loop** — after ingredients are detected, the graph pauses at
+  `review_ingredients` via `interrupt()` so the user can edit the list before recipes
+  are generated.
+- **Persistence** — an in-memory checkpointer keeps per-`thread_id` conversation state,
+  and artifacts are written to `data/<thread_id>/`:
+	- `fridge.<ext>` — uploaded image
+	- `inventory.json` — detected / edited ingredients
+	- `recipes.json` — generated meal plan
+
+### Package layout
+
+- `kitchen/schemas.py` — shared pydantic models and the `Classification` enum
+- `kitchen/services.py` — vision inventory detection + recipe generation
+- `kitchen/persistence.py` — local per-thread file storage
+- `kitchen/agent.py` — the LangGraph state graph, tools, and interrupt
+- `kitchen/server.py` — FastAPI backend
+- `frontend/` — Vite + React + TypeScript single-page client
+
+### Run the backend
+
+```bash
+python -m uvicorn kitchen.server:app --reload
+```
+
+The first request takes a few seconds while `langchain` / `langgraph` import; once
+you see `Uvicorn running on http://127.0.0.1:8000` it is ready.
+
+### Run the frontend (dev)
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://127.0.0.1:5173 (proxies /api to the backend on :8000)
+```
+
+For a production bundle, `npm run build` emits `frontend/dist`, which the backend
+then serves at http://127.0.0.1:8000.
+
+### API
+
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| POST | `/api/threads` | Create a new conversation thread |
+| POST | `/api/threads/{thread_id}/image` | Upload a fridge image (multipart) |
+| POST | `/api/threads/{thread_id}/messages` | Send a chat message |
+| POST | `/api/threads/{thread_id}/review` | Resume after editing ingredients |
+| GET | `/api/threads/{thread_id}/inventory` | Load persisted inventory |
+| GET | `/api/threads/{thread_id}/recipes` | Load persisted recipes |
+| GET | `/api/threads/{thread_id}/image` | Fetch the uploaded fridge image |
+
+### Typical flow
+
+1. `POST /api/threads` → get a `thread_id`.
+2. `POST /api/threads/{thread_id}/image` → the response contains an `interrupt` with
+   the detected inventory.
+3. `POST /api/threads/{thread_id}/review` with the edited `{ "inventory": {...} }`
+   (or `null` to accept as-is) → the agent asks about allergies / diet / skill / goal.
+4. `POST /api/threads/{thread_id}/messages` with those constraints → the response
+   contains the generated `recipes`.

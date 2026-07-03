@@ -6,5 +6,9 @@ pillow
 matplotlib
 langgraph
 langchain
+langchain-openai
 langchain-azure-ai
 ipython
+fastapi
+uvicorn[standard]
+python-multipart
