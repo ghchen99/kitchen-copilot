@@ -8,6 +8,7 @@ langgraph
 langchain
 langchain-openai
 langchain-azure-ai
+ag-ui-langgraph
 ipython
 fastapi
 uvicorn[standard]

@@ -16,7 +16,7 @@ flowchart LR
     end
 
     subgraph Server["Backend (FastAPI)"]
-        API[/REST API/]
+        AGUI[/AG-UI endpoint<br/>POST /agent/]
         GRAPH[LangGraph Agent]
         FILES[(Local files<br/>data/&lt;thread_id&gt;/)]
     end
@@ -26,18 +26,21 @@ flowchart LR
         RECIPE[Recipe model]
     end
 
-    UI -- "/api/... (JSON + multipart)" --> API
-    MODAL -- "resume with edited items" --> API
-    API --> GRAPH
+    UI -- "AG-UI events (SSE stream)" --> AGUI
+    MODAL -- "resume via interrupt" --> AGUI
+    UI -- "POST /api/image (multipart)" --> FILES
+    AGUI --> GRAPH
     GRAPH --> VISION
     GRAPH --> RECIPE
     GRAPH --> FILES
-    API --> FILES
 ```
 
 The system is a **conversational agent**: the user chats, uploads a fridge photo,
 reviews the detected ingredients, and receives recipes. All of it flows through one
-LangGraph state machine keyed by a `thread_id`.
+LangGraph state machine keyed by a `thread_id`. The frontend and backend talk over
+the [**AG-UI protocol**](https://github.com/ag-ui-protocol/ag-ui): the compiled
+graph is exposed as a single streaming endpoint via `ag-ui-langgraph`, and the UI
+drives it with the standard `@ag-ui/client` `HttpAgent` — no bespoke REST protocol.
 
 ---
 
@@ -51,8 +54,8 @@ LangGraph state machine keyed by a `thread_id`.
 | `config.py` | Loads env vars, builds the cached OpenAI client, sets `DATA_DIR`. |
 | `services.py` | Pure AI calls: `detect_inventory` (vision) and `generate_meal_plan` (recipes). |
 | `persistence.py` | Local per-thread file storage (image, inventory, recipes). |
-| `agent.py` | The LangGraph state graph, tools, interrupt, and the convenience API. |
-| `server.py` | FastAPI app exposing the agent over HTTP + serving the built frontend. |
+| `agent.py` | The LangGraph state graph, tools, and interrupt (compiled as `agent`). |
+| `server.py` | Serves the graph over AG-UI (`ag-ui-langgraph`) + image upload + built frontend. |
 
 ### 2.2 The agent graph
 
@@ -83,30 +86,36 @@ flowchart LR
 - **Checkpointer** — an `InMemorySaver` persists state per `thread_id`, which is what
   makes multi-turn conversation (and pause/resume) possible.
 
-### 2.3 Convenience API (used by the server)
+### 2.3 AG-UI endpoint (`server.py`)
 
-`agent.py` wraps the graph in three functions so the HTTP layer stays thin:
+`server.py` is now thin. It hands the compiled graph to `ag-ui-langgraph`, which
+streams AG-UI events for the whole conversation:
 
-- `new_thread_id()` — fresh UUID.
-- `chat(thread_id, message)` — invoke with a user message.
-- `resume_review(thread_id, edited_inventory)` — resume a paused thread.
-
-Each returns a normalized dict: `{ thread_id, reply, interrupt, inventory, recipes }`.
-`_message_text()` flattens the Responses-API content blocks
-(`[{"type":"text","text":"..."}]`) into a plain string for `reply`.
-
-### 2.4 REST API (`server.py`)
+```python
+add_langgraph_fastapi_endpoint(
+    app, LangGraphAgent(name="kitchen_copilot", graph=agent), path="/agent"
+)
+```
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
-| POST | `/api/threads` | Create a conversation thread |
-| POST | `/api/threads/{id}/image` | Upload a fridge image (multipart), kick off detection |
-| POST | `/api/threads/{id}/messages` | Send a chat message |
-| POST | `/api/threads/{id}/review` | Resume after editing ingredients |
-| GET | `/api/threads/{id}/inventory` | Load persisted inventory |
-| GET | `/api/threads/{id}/recipes` | Load persisted recipes |
-| GET | `/api/threads/{id}/image` | Fetch the uploaded fridge image |
+| POST | `/agent` | AG-UI run: streams messages, tool calls, shared state, and the review interrupt (SSE) |
+| GET  | `/agent/health` | Health check emitted by the integration |
+| POST | `/api/image?thread_id=…` | Upload a fridge image (multipart); returns its local `path` |
 
+The AG-UI run carries everything that used to need bespoke endpoints:
+
+- **Chat** — user messages are sent in the run input; assistant replies stream back
+  as `TEXT_MESSAGE_*` events.
+- **Inventory / recipes** — the graph's `KitchenState` is synced to the client as
+  `STATE_SNAPSHOT` events, so the frontend reads `agent.state.recipes` directly
+  instead of polling REST routes.
+- **Ingredient review** — the graph's `interrupt(...)` surfaces as an `on_interrupt`
+  custom event; the client resumes by starting a run with
+  `forwardedProps.command.resume = <edited inventory>`.
+
+Image upload is the only non-AG-UI call: the vision tool needs a file path, so the
+photo is saved first and the returned `path` is referenced in the next chat message.
 In production the app also serves the Vite `dist/` build at `/`.
 
 ### 2.5 Persistence
@@ -131,8 +140,9 @@ placeholder for cloud/object storage later.
 | File | Responsibility |
 | ---- | -------------- |
 | `types.ts` | TypeScript mirrors of the backend schemas + classification colors. |
-| `api.ts` | Thin `fetch` wrapper for each endpoint. |
-| `App.tsx` | Owns all state: thread id, chat messages, review modal, busy flag. |
+| `lib/agent.ts` | Constructs the AG-UI `HttpAgent` (points at `/agent`) + `uploadImage` helper. |
+| `hooks/useKitchenAgent.ts` | Bridges AG-UI events (messages, state, interrupt) to React state. |
+| `App.tsx` | Renders the chat, composer, and review modal off the hook. |
 | `components/Composer.tsx` | Text input + 📷 upload button. |
 | `components/ChatBubble.tsx` | Renders a text / image / recipes message. |
 | `components/ReviewModal.tsx` | Image with editable bounding-box labels + item list. |
@@ -141,13 +151,18 @@ placeholder for cloud/object storage later.
 
 ### 3.2 State model
 
-`App.tsx` keeps an array of `ChatMessage` (a discriminated union of `text`, `image`,
-and `recipes` kinds). Every server response is funneled through `applyResponse()`,
-which:
+`useKitchenAgent` subscribes to the AG-UI `HttpAgent` and maps its events onto an
+array of `ChatMessage` (a discriminated union of `text`, `image`, and `recipes`
+kinds):
 
-1. appends the assistant's `reply` (if any),
-2. appends a recipe-cards message when `recipes` is present,
-3. opens the review modal when an `interrupt` of type `review_ingredients` arrives.
+1. `TEXT_MESSAGE_*` events stream the assistant's reply token-by-token into one
+   bubble,
+2. `STATE_SNAPSHOT` updates (`agent.state.recipes`) append a recipe-cards message
+   when the plan changes,
+3. an `on_interrupt` custom event of type `review_ingredients` opens the review modal.
+
+User text/image bubbles are added locally when sending; the agent keeps the
+authoritative message + state history.
 
 ### 3.3 The bounding-box review modal
 
@@ -162,8 +177,8 @@ which:
 
 ### 3.4 Dev vs. prod wiring
 
-- **Dev:** `npm run dev` serves the app on `:5173`; Vite proxies `/api/*` to the
-  backend on `:8000` (no CORS friction, relative URLs everywhere).
+- **Dev:** `npm run dev` serves the app on `:5173`; Vite proxies `/agent` and
+  `/api/*` to the backend on `:8000` (no CORS friction, relative URLs everywhere).
 - **Prod:** `npm run build` emits `frontend/dist`, which FastAPI serves directly.
 
 ---
@@ -173,37 +188,35 @@ which:
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant FE as Frontend
-    participant BE as FastAPI
+    participant FE as Frontend (HttpAgent)
+    participant BE as FastAPI (AG-UI)
     participant AG as LangGraph
     participant AI as Model
 
-    U->>FE: open app
-    FE->>BE: POST /api/threads
-    BE-->>FE: { thread_id }
-
     U->>FE: upload fridge photo
-    FE->>BE: POST /api/threads/{id}/image
-    BE->>AG: chat("image saved at ...")
+    FE->>BE: POST /api/image?thread_id=…
+    BE-->>FE: { path }
+    FE->>BE: POST /agent (run: "identify … at <path>")
+    BE->>AG: run
     AG->>AI: vision detect
     AI-->>AG: inventory
-    AG-->>BE: interrupt(review_ingredients)
-    BE-->>FE: { interrupt, inventory }
+    AG-->>BE: STATE_SNAPSHOT + on_interrupt
+    BE-->>FE: SSE events
     FE->>U: open review modal
 
     U->>FE: edit labels, Save
-    FE->>BE: POST /api/threads/{id}/review
-    BE->>AG: resume(edited inventory)
-    AG-->>BE: reply ("any allergies?")
-    BE-->>FE: { reply }
+    FE->>BE: POST /agent (resume = edited inventory)
+    BE->>AG: Command(resume=…)
+    AG-->>BE: TEXT_MESSAGE_* ("any allergies?")
+    BE-->>FE: SSE events
 
     U->>FE: "vegetarian, no nuts"
-    FE->>BE: POST /api/threads/{id}/messages
-    BE->>AG: chat(constraints)
+    FE->>BE: POST /agent (run: constraints)
+    BE->>AG: run
     AG->>AI: generate recipes
     AI-->>AG: meal plan
-    AG-->>BE: reply + recipes
-    BE-->>FE: { reply, recipes }
+    AG-->>BE: TEXT_MESSAGE_* + STATE_SNAPSHOT(recipes)
+    BE-->>FE: SSE events
     FE->>U: render recipe cards
 ```
 
@@ -214,14 +227,16 @@ sequenceDiagram
 **Reliability & correctness**
 - **Durable checkpointing.** Swap `InMemorySaver` for `SqliteSaver`/`PostgresSaver` so
   conversations and paused interrupts survive a server restart.
-- **Validate resume payloads.** The `/review` endpoint currently trusts the client's
-  inventory shape; validate it against a Pydantic model before resuming.
+- **Validate resume payloads.** The AG-UI resume value (edited inventory) is trusted
+  as-is; validate it against a Pydantic model in the `review_ingredients` node before
+  using it.
 - **Idempotency / concurrency.** Guard against two requests resuming the same thread
   simultaneously (e.g. a per-thread lock or optimistic version check).
 
 **Architecture & scale**
-- **Streaming responses.** Use `graph.stream()` + SSE/WebSocket so the UI shows tokens
-  and tool progress live instead of waiting for the full turn.
+- **Streaming responses.** ✅ Done — the AG-UI endpoint streams `TEXT_MESSAGE_*`,
+  tool-call, and `STATE_SNAPSHOT` events over SSE, so the UI shows tokens and state
+  live. Next: surface tool-call progress ("detecting…", "cooking up recipes…") too.
 - **Cloud storage.** Replace the local `data/` folder with blob storage (e.g. Azure Blob
   / S3); `persistence.py` is already the single seam to change.
 - **Background jobs.** Vision + recipe calls are slow; move them to a task queue and

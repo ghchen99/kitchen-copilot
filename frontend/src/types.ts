@@ -111,20 +111,6 @@ export interface MealPlan {
   missing_common_items: string[];
 }
 
-export interface ReviewInterrupt {
-  type: "review_ingredients";
-  instruction: string;
-  inventory: Inventory;
-}
-
-export interface AgentResponse {
-  thread_id: string;
-  reply: string | null;
-  interrupt: ReviewInterrupt | null;
-  inventory: Inventory | null;
-  recipes: MealPlan | null;
-}
-
 export type ChatMessage =
   | { id: string; role: "user" | "assistant"; kind: "text"; text: string }
   | { id: string; role: "user"; kind: "image"; imageUrl: string }

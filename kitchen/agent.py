@@ -18,7 +18,6 @@ Persistence:
     inventories / recipes are written to local files (see ``kitchen.persistence``).
 """
 
-import uuid
 from typing import Annotated, Literal, Optional
 
 from langchain.chat_models import init_chat_model
@@ -296,84 +295,8 @@ def build_agent():
     return builder.compile(checkpointer=InMemorySaver())
 
 
+# The compiled graph is served directly over the AG-UI protocol by
+# ``kitchen.server`` (via ``ag-ui-langgraph``), which handles message streaming,
+# shared state, and the review interrupt — so no hand-rolled convenience API is
+# needed here anymore.
 agent = build_agent()
-
-
-# -----------------------------
-# CONVENIENCE API (used by the server)
-# -----------------------------
-
-
-def new_thread_id() -> str:
-    """Generate a fresh conversation thread id."""
-    return uuid.uuid4().hex
-
-
-def _extract_interrupt(result: dict) -> Optional[dict]:
-    """Return the interrupt payload from an invoke result, if the graph paused."""
-    interrupts = result.get("__interrupt__")
-    if not interrupts:
-        return None
-    first = interrupts[0]
-    return getattr(first, "value", first)
-
-
-def _message_text(message) -> str:
-    """Flatten a message's content into plain text.
-
-    The Responses API returns ``content`` as a list of blocks such as
-    ``[{"type": "text", "text": "..."}]`` rather than a plain string, so we join
-    the text blocks instead of ``str()``-ing the whole list.
-    """
-    content = getattr(message, "content", "")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict):
-                text = block.get("text")
-                if text:
-                    parts.append(text)
-            elif isinstance(block, str):
-                parts.append(block)
-        return "".join(parts)
-    return str(content)
-
-
-def _latest_reply(result: dict) -> Optional[str]:
-    """Return the text of the last AI message, if any."""
-    for message in reversed(result.get("messages", [])):
-        if message.__class__.__name__ == "AIMessage":
-            text = _message_text(message)
-            if text.strip():
-                return text
-    return None
-
-
-def _respond(result: dict, thread_id: str) -> dict:
-    """Shape an invoke result into a serializable response for the frontend."""
-    return {
-        "thread_id": thread_id,
-        "reply": _latest_reply(result),
-        "interrupt": _extract_interrupt(result),
-        "inventory": result.get("inventory"),
-        "recipes": result.get("recipes"),
-    }
-
-
-def chat(thread_id: str, message: str) -> dict:
-    """Send a user message to the agent on a given thread and return its response."""
-    config = {"configurable": {"thread_id": thread_id}}
-    result = agent.invoke(
-        {"messages": [HumanMessage(content=message)], "thread_id": thread_id},
-        config=config,
-    )
-    return _respond(result, thread_id)
-
-
-def resume_review(thread_id: str, edited_inventory: Optional[dict]) -> dict:
-    """Resume a paused thread with the user's edited (or accepted) inventory."""
-    config = {"configurable": {"thread_id": thread_id}}
-    result = agent.invoke(Command(resume=edited_inventory), config=config)
-    return _respond(result, thread_id)

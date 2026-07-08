@@ -198,7 +198,7 @@ you see `Uvicorn running on http://127.0.0.1:8000` it is ready.
 ```bash
 cd frontend
 npm install
-npm run dev      # http://127.0.0.1:5173 (proxies /api to the backend on :8000)
+npm run dev      # http://127.0.0.1:5173 (proxies /agent and /api to :8000)
 ```
 
 For a production bundle, `npm run build` emits `frontend/dist`, which the backend
@@ -206,22 +206,26 @@ then serves at http://127.0.0.1:8000.
 
 ### API
 
+The backend and frontend talk over the
+[**AG-UI protocol**](https://github.com/ag-ui-protocol/ag-ui): the compiled
+LangGraph agent is exposed as a single streaming endpoint via `ag-ui-langgraph`,
+and the client uses `@ag-ui/client`'s `HttpAgent`.
+
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
-| POST | `/api/threads` | Create a new conversation thread |
-| POST | `/api/threads/{thread_id}/image` | Upload a fridge image (multipart) |
-| POST | `/api/threads/{thread_id}/messages` | Send a chat message |
-| POST | `/api/threads/{thread_id}/review` | Resume after editing ingredients |
-| GET | `/api/threads/{thread_id}/inventory` | Load persisted inventory |
-| GET | `/api/threads/{thread_id}/recipes` | Load persisted recipes |
-| GET | `/api/threads/{thread_id}/image` | Fetch the uploaded fridge image |
+| POST | `/agent` | AG-UI run — streams chat, tool calls, shared state (inventory/recipes), and the review interrupt (SSE) |
+| GET  | `/agent/health` | Health check |
+| POST | `/api/image?thread_id=…` | Upload a fridge image (multipart); returns its local `path` |
 
 ### Typical flow
 
-1. `POST /api/threads` → get a `thread_id`.
-2. `POST /api/threads/{thread_id}/image` → the response contains an `interrupt` with
-   the detected inventory.
-3. `POST /api/threads/{thread_id}/review` with the edited `{ "inventory": {...} }`
-   (or `null` to accept as-is) → the agent asks about allergies / diet / skill / goal.
-4. `POST /api/threads/{thread_id}/messages` with those constraints → the response
-   contains the generated `recipes`.
+1. The client creates an `HttpAgent` with a fresh `thread_id`.
+2. `POST /api/image?thread_id=…` saves the photo and returns its `path`; the client
+   sends a chat run asking to identify ingredients.
+3. The run streams back the detected inventory as shared state and pauses with an
+   `on_interrupt` (`review_ingredients`) event — the UI opens the review modal.
+4. The client resumes the run with the edited inventory
+   (`forwardedProps.command.resume`) → the agent asks about allergies / diet /
+   skill / goal.
+5. A follow-up run with those constraints streams the assistant reply plus the
+   generated `recipes` (as a `STATE_SNAPSHOT`).

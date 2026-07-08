@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/chatbubble.tsx","./src/components/composer.tsx","./src/components/recipecards.tsx","./src/components/reviewmodal.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/chatbubble.tsx","./src/components/composer.tsx","./src/components/recipecards.tsx","./src/components/reviewmodal.tsx","./src/hooks/usekitchenagent.ts","./src/lib/agent.ts"],"version":"5.9.3"}
